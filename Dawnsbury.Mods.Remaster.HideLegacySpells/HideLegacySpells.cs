@@ -22,37 +22,15 @@ namespace Dawnsbury.Mods.Remaster.HideLegacySpells
                 new[] { SpellId.BurningHands, SpellId.ColorSpray, SpellId.MagicMissile, SpellId.MageArmor, SpellId.MagicWeapon, SpellId.TrueStrike, SpellId.ShockingGrasp },
                 new[] { SpellId.AcidArrow, SpellId.CalmEmotions, SpellId.FlamingSphere, SpellId.HideousLaughter, SpellId.ObscuringMist, SpellId.SoundBurst, SpellId.Barkskin, SpellId.SpiritualWeapon, SpellId.TouchOfIdiocy }
             };
-            for (int i = 0; i < legacySpells.Length; i++)
+            ModManager.RegisterActionOnEachSpell(spell =>
             {
-                foreach (var legacySpell in legacySpells[i])
+                foreach (var legacySpellList in legacySpells)
                 {
-                    HideLegacySpell(legacySpell, i);
+                    if (legacySpellList.Contains(spell.SpellId))
+                    {
+                        spell.Traits.Add(Trait.SpellCannotBeChosenInCharacterBuilder);
+                    }
                 }
-            }
-        }
-
-        public static void HideLegacySpell(SpellId legacySpellId, int minimumSpellLevel)
-        {
-            // Make the legacy version of the spell inaccessable by removing the casting traditions
-            ModManager.ReplaceExistingSpell(legacySpellId, minimumSpellLevel, delegate (Creature? creature, int spellLevel, bool inCombat, SpellInformation spellInformation)
-            {
-                CombatAction? existingSpell = minimumSpellLevel switch
-                {
-                    0 => Cantrips.LoadModernSpell(legacySpellId, creature, spellLevel, inCombat, spellInformation),
-                    1 => Level1Spells.LoadModernSpell(legacySpellId, creature, spellLevel, inCombat, spellInformation),
-                    2 => Level2Spells.LoadModernSpell(legacySpellId, creature, spellLevel, inCombat, spellInformation),
-                    _ => null
-                } ?? throw new Exception("Invalid Spell: " + legacySpellId);
-                IEnumerable<Trait> filteredTraits = existingSpell.Traits.Where((trait) => trait switch
-                {
-                    Trait.Arcane => false,
-                    Trait.Divine => false,
-                    Trait.Occult => false,
-                    Trait.Primal => false,
-                    _ => true
-                });
-                existingSpell.Traits = new Traits(filteredTraits, existingSpell);
-                return existingSpell;
             });
         }
     }
