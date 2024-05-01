@@ -260,7 +260,7 @@ namespace Dawnsbury.Mods.Remaster.Spellbook
                     "\n\n{b}Special{/b} You can cast this spell as a free action at the beginning of the encounter.", Target.Self().WithAdditionalRestriction((Creature self) => (!self.HasEffect(QEffectId.MageArmor) && !self.PersistentUsedUpResources.CastMageArmor) ? null : "You're already wearing {i}mystic armor{/i}."), spellLevel, null).WithSoundEffect(SfxName.Abjuration).WithActionCost(2)
                 .WithEffectOnEachTarget(async delegate (CombatAction spell, Creature caster, Creature target, CheckResult checkResult)
                 {
-                    caster.AddQEffect(QEffect.MageArmor());
+                    caster.AddQEffect(QEffect.MageArmor(false));
                     caster.PersistentUsedUpResources.CastMageArmor = true;
                 });
                 mageArmor.WhenCombatBegins = delegate (Creature self)
