@@ -69,7 +69,6 @@ namespace Dawnsbury.Mods.Remaster.Spellbook
         // ? Spirit Link
         // ? Thoughtful Gift
 
-        // Leaden Steps
         // Mud Pit
         // Noxious Vapors
         // Protector Tree (depending on difficulty)
@@ -373,6 +372,52 @@ namespace Dawnsbury.Mods.Remaster.Spellbook
                 });
             });
 
+            // Leaden Steps from PC2
+            RemasterSpells.RegisterNewSpell("LeadenSteps", 1, (spellId, spellcaster, spellLevel, inCombat, spellInformation) =>
+            {
+                return Spells.CreateModern(IllustrationName.Rock, "Leaden Steps", [Trait.Concentrate, Trait.Manipulate, Trait.Metal, Trait.Morph, Trait.Arcane, Trait.Primal, RemasterSpells.Trait.Remaster],
+                    "You partially transform a foe’s feet into unwieldy slabs of metal, slowing their steps.", "The target attempts a Fortitude saving throw" +
+                        RemasterSpells.StripInitialWhitespace(S.FourDegreesOfSuccess("The target is unaffected.",
+                                           "The target is encumbered and has weakness " + S.HeightenedVariable(1 + spellLevel, 2) + " to electricity until the end of your next turn. The spell can’t be sustained.",
+                                           "The target is encumbered and has weakness " + S.HeightenedVariable(1 + spellLevel, 2) + " to electricity.",
+                                           "The target is encumbered and has weakness " + S.HeightenedVariable(2 + spellLevel, 3) + " to electricity.")) +
+                        S.HeightenText(spellLevel, 1, inCombat, "{b}Heightened (+1){/b} The weakness increasess by 2."),
+                    Target.Ranged(6), spellLevel, SpellSavingThrow.Basic(Defense.Fortitude))
+                .WithSoundEffect(SfxName.AncientDust)
+                .WithEffectOnEachTarget(async (spell, caster, target, result) =>
+                {
+                    if (result == CheckResult.CriticalSuccess)
+                    {
+                        return;
+                    }
+                    int weakness = 1 + spellLevel + ((result == CheckResult.CriticalFailure) ? 1 : 0);
+                    // NOTE: I should really have something that prevents multiple encumbered effects from applying.
+                    QEffect clumsyEffect = QEffect.Clumsy(1);
+                    QEffect encumberedEffect = new QEffect("Encumbered", "You're clumsy 1 and take a -10 penalty to all your Speeds.")
+                    {
+                        Illustration = IllustrationName.Slowed,
+                        CountsAsADebuff = true,
+                        BonusToAllSpeeds = (_) => new Bonus(-2, BonusType.Untyped, spell.Name, false),
+                    };
+                    QEffect weaknessEffect = QEffect.DamageWeakness(DamageKind.Electricity, weakness);
+                    QEffect mainEffect = new QEffect("affected by Leaden Steps", "Encumbered and weakness " + weakness + " to electricity.", ExpirationCondition.ExpiresAtEndOfSourcesTurn, caster, IllustrationName.Rock)
+                    {
+                        CountsAsADebuff = true,
+                        CannotExpireThisTurn = true,
+                        WhenExpires = (qEffect) => qEffect.Owner.RemoveAllQEffects((other) => other == encumberedEffect || other == weaknessEffect || other == clumsyEffect),
+                    };
+                    target.AddQEffect(mainEffect);
+                    target.AddQEffect(weaknessEffect);
+                    target.AddQEffect(encumberedEffect);
+                    target.AddQEffect(clumsyEffect);
+                    if (result <= CheckResult.Failure)
+                    {
+                        QEffect sustainEffect = QEffect.Sustaining(spell, mainEffect);
+                        caster.AddQEffect(sustainEffect);
+                    }
+                });
+            });
+
             // Mystic Armor (formerly Mage Armor)
             RemasterSpells.ReplaceLegacySpell(SpellId.MageArmor, "MysticArmor", 1, (spellId, spellcaster, spellLevel, inCombat, spellInformation) =>
             {
@@ -427,8 +472,8 @@ namespace Dawnsbury.Mods.Remaster.Spellbook
                             QEffect persistentDamage = QEffect.PersistentDamage(spellLevel + "d4", DamageKind.Mental);
                             QEffect sickenedEffect = QEffect.Sickened(checkResult == CheckResult.CriticalFailure ? 2 : 1, spell.SpellcastingSource.GetSpellSaveDC());
                             sickenedEffect.WhenExpires = (_) => { sickenedEffect.Owner.RemoveAllQEffects(qEffect => qEffect == persistentDamage); };
-                            target.AddQEffect(persistentDamage);
                             target.AddQEffect(sickenedEffect);
+                            target.AddQEffect(persistentDamage);
                         }
                     }
                 });
